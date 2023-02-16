@@ -1,0 +1,182 @@
+﻿@page "/fetchdata"
+@using MauiBlazorSqlite.Data
+@inject WeatherForecastService ForecastService
+<h1>Weather forecast</h1>
+<p style="color:red">@Error</p>
+@if (forecasts == null)
+{
+    <!-- Show this if the current user has no data... yet... -->
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <!-- Show the forecasts for the current user -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                    <td>
+                        <!-- Edit the current forecast -->
+                        <button class="btn btn-primary"
+                        @onclick="(() => EditForecast(forecast))">
+                            Edit
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p>
+        <!-- Add a new forecast -->
+        <button class="btn btn-success"
+            @onclick="AddNewForecast">
+            Add New Forecast
+        </button>
+    </p>
+    @if (ShowPopup)
+    {
+        <!-- This is the popup to create or edit a forecast -->
+        <div class="modal" tabindex="-1" style="display:block" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Edit Forecast</h3>
+                        <!-- Button to close the popup -->
+                        <button type="button" class="close"
+                        @onclick="ClosePopup">
+                            <span aria-hidden="true">X</span>
+                        </button>
+                    </div>
+                    <!-- Edit form for the current forecast -->
+                    <div class="modal-body">
+                        <input class="form-control" type="text"
+                       placeholder="Celsius forecast"
+                       @bind="objWeatherForecast.TemperatureC" />
+                        <input class="form-control" type="text"
+                       placeholder="Fahrenheit forecast"
+                       @bind="objWeatherForecast.TemperatureF" />
+                        <input class="form-control" type="text"
+                       placeholder="Summary"
+                       @bind="objWeatherForecast.Summary" />
+                        <br />
+                        <!-- Button to save the forecast -->
+                        <button class="btn btn-success"
+                        @onclick="SaveForecast">
+                            Save
+                        </button>&nbsp;
+                        <!-- Only show delete button if not a new record -->
+                        @if (objWeatherForecast.Id > 0)
+                        {
+                            <!-- Button to delete the forecast -->
+                            <button class="btn btn-danger"
+                        @onclick="DeleteForecast">
+                                Delete
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code
+{
+    string Error = "";
+    List<WeatherForecast> forecasts = new List<WeatherForecast>();
+    WeatherForecast objWeatherForecast = new WeatherForecast();
+    bool ShowPopup = false;
+    protected override async Task OnInitializedAsync()
+    {
+        // Get the forecasts
+        forecasts = await ForecastService.GetForecastAsync();
+    }
+    void AddNewForecast()
+    {
+        // Make new forecast
+        objWeatherForecast = new WeatherForecast();
+        // Set Id to 0 so we know it is a new record
+        objWeatherForecast.Id = 0;
+        // Open the Popup
+        ShowPopup = true;
+    }
+    void EditForecast(WeatherForecast weatherForecast)
+    {
+        // Set the selected forecast
+        // as the current forecast
+        objWeatherForecast = weatherForecast;
+        // Open the Popup
+        ShowPopup = true;
+    }
+    void ClosePopup()
+    {
+        // Close the Popup
+        ShowPopup = false;
+    }
+    async Task SaveForecast()
+    {
+        // Close the Popup
+        ShowPopup = false;
+        Error = "";
+        try
+        {
+            // A new forecast will have the Id set to 0
+            if (objWeatherForecast.Id == 0)
+            {
+                // Create new forecast
+                WeatherForecast objNewWeatherForecast = new WeatherForecast();
+                objNewWeatherForecast.Date = System.DateTime.Now;
+                objNewWeatherForecast.Summary = objWeatherForecast.Summary;
+                objNewWeatherForecast.TemperatureC =
+                Convert.ToInt32(objWeatherForecast.TemperatureC);
+                objNewWeatherForecast.TemperatureF =
+                Convert.ToInt32(objWeatherForecast.TemperatureF);
+                // Save the result
+                var NewWeatherForecast =
+                await ForecastService.CreateForecastAsync(objNewWeatherForecast);
+                // Add the Forcast
+                forecasts.Add(NewWeatherForecast);
+            }
+            else
+            {
+                // This is an update
+                await ForecastService.UpdateForecastAsync(objWeatherForecast);
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+    async Task DeleteForecast()
+    {
+        // Close the Popup
+        ShowPopup = false;
+        try
+        {
+            Error = "";
+            // Delete the forecast
+            await ForecastService.DeleteForecastAsync(objWeatherForecast);
+            // Remove the Forcast
+            forecasts.Remove(objWeatherForecast);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+}
