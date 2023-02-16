@@ -1,0 +1,18 @@
+﻿@page "/"
+@using MauiPlatformSpecific.Data
+@inject PlatformService PlatformService
+<h1>Hello from @platform!</h1>
+
+Welcome to your new app.
+
+<SurveyPrompt Title="How is Blazor working for you?" />
+
+
+@code {
+    private string platform;
+
+    protected override void OnInitialized()
+    {
+        platform = PlatformService.GetPlatform();
+    }
+}
