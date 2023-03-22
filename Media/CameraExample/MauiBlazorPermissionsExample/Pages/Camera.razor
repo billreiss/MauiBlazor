@@ -1,0 +1,76 @@
+﻿@page "/camera"
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<h1>Camera</h1>
+
+@if (_lastError is not null)
+{
+    <p>Could not start video: @_lastError</p>
+
+    if (HasReloaded == true)
+    {
+        <p>You may need to open the settings app to enable camera access for this app</p>
+    }
+
+    <button @onclick="Reload">Reload</button>
+}
+
+<div>
+    <video id="videoFeed" @ref="_videoReference" style="width: 400px;">The current WebView does not support video.</video>
+    <canvas class="d-none" id="currentFrame" width="320" height="240" />
+</div>
+<div>
+    <button @onclick="CaptureFrame">Take a photo</button>
+</div>
+@if (!string.IsNullOrEmpty(frameUri))
+{
+    <img src="@frameUri" />
+}
+
+@code {
+    private ElementReference? _videoReference;
+    private string? _lastError;
+    private string frameUri;
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "reloaded")]
+    public bool? HasReloaded { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _lastError = await JS.InvokeAsync<string?>("startCameraFeed", _videoReference);
+            StateHasChanged();
+        }
+    }
+
+    private void Reload()
+    {
+        var reloadedUri = NavigationManager.GetUriWithQueryParameter("reloaded", true);
+        NavigationManager.NavigateTo(reloadedUri, true);
+    }
+
+    private async Task CaptureFrame()
+    {
+        try
+        {
+            var url = await JS.InvokeAsync<String>("getFrame", "videoFeed", "currentFrame", DotNetObjectReference.Create(this));
+            Console.WriteLine(url);
+            frameUri = url;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        await JS.InvokeVoidAsync("stopCameraFeed", _videoReference);
+    }
+}
